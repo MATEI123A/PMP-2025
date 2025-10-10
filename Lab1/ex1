@@ -1,0 +1,27 @@
+import random
+import numpy
+
+red_count = 0
+
+def generate():
+  for i in range(1,1000):
+    urn = ['R','R','R','B','B','B','B','N','N']
+
+    roll = random.randint(1,6)
+
+    if roll in [2,3,5]:
+      urn.append('N')
+    elif roll == 6:
+      urn.append('R')
+    else:
+      urn.append('B')
+
+    draw = random.choice(urn)
+
+    if draw == 'R':
+      global red_count
+      red_count += 1
+
+  print("The prob of drawing red ball is: ",red_count/1000)
+   
+print(generate()) 
