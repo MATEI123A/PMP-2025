@@ -1,0 +1,20 @@
+from pgmpy.models import DiscreteBayesianNetwork
+from pgmpy.factors.discrete import TabularCPD
+from pgmpy.inference import VariableElimination
+
+model = DiscreteBayesianNetwork([('D', 'B')])
+cpd_D = TabularCPD('D', 3, [[0.5], [0.167], [0.333]])
+cpd_B = TabularCPD('B', 3,
+    [[0.3, 0.4, 0.3],
+     [0.4, 0.4, 0.5],
+     [0.3, 0.2, 0.2]],
+    evidence=['D'], evidence_card=[3])
+
+model.add_cpds(cpd_D, cpd_B)
+model.check_model()
+
+infer = VariableElimination(model)
+result = infer.query(variables=['B'])
+
+print(result.values[0])
+
