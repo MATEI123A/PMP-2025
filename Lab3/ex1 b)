@@ -1,0 +1,61 @@
+from matplotlib import pyplot as plt
+from pgmpy.models import MarkovNetwork
+from pgmpy.factors.discrete import DiscreteFactor
+from pgmpy.inference import VariableElimination
+import networkx as nx
+import itertools, math
+
+model = MarkovNetwork()
+nodes = ['A1','A2','A3','A4','A5']
+model.add_nodes_from(nodes)
+model.add_edges_from([
+    ("A1","A2"),
+    ("A1","A3"),
+    ("A2","A4"),
+    ("A2","A5"),
+    ("A3","A4"),
+    ("A4","A5")
+])
+
+pos = nx.circular_layout(model)
+nx.draw(model, with_labels=True, pos=pos, alpha=0.7, node_size=1800, font_weight="bold")
+plt.show()
+
+interval = [-1, 1]
+index_map = {"A1": 1, "A2": 2, "A3": 3, "A4": 4, "A5": 5}
+
+def factor(variables):
+    card = [2] * len(variables)
+    values = []
+
+    for x in itertools.product([-1, 1], repeat=len(variables)):
+        s = 0
+
+        for i, var in enumerate(variables):
+            index = index_map[var]
+            s += index * x[i]
+
+        values.append(math.exp(s))
+
+    return DiscreteFactor(variables=variables, cardinality=card, values=values)
+
+factor_a1_a2 = factor(['A1', 'A2'])
+factor_a1_a3 = factor(['A1', 'A3'])
+factor_a2_a4 = factor(['A2', 'A4'])
+factor_a2_a5 = factor(['A2', 'A5'])
+factor_a3_a4 = factor(['A3', 'A4'])
+factor_a4_a5 = factor(['A4', 'A5'])
+
+model.add_factors(factor_a1_a2, factor_a1_a3, factor_a2_a4, factor_a2_a5, factor_a3_a4, factor_a4_a5)
+print("Factori:")
+for f in model.get_factors():
+    print(f)
+
+infer = VariableElimination(model)
+map_result = infer.map_query(variables=['A1','A2','A3','A4','A5'])
+
+print("Best config:")
+for var, val in map_result.items():
+    print(f"{var} = {val}")
+
+
