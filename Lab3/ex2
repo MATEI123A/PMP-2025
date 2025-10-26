@@ -1,0 +1,54 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from pgmpy.models import MarkovNetwork
+from pgmpy.factors.discrete import DiscreteFactor
+from pgmpy.inference import BeliefPropagation
+import itertools, math
+
+original_image = np.random.choice([0, 1], size=(5, 5))
+print("Original Image:", original_image)
+
+noisy_image = original_image.copy()
+num_noisy = int(0.1 * noisy_image.size)
+indices = np.random.choice(noisy_image.size, num_noisy, replace=False)
+
+for index in indices:
+    r, c = divmod(index, noisy_image.shape[1])
+    noisy_image[r, c] = 1 - noisy_image[r, c]
+
+print("Noisy Image:", noisy_image)
+
+model = MarkovNetwork()
+nodes = [(r, c) for r in range(5) for c in range(5)]
+model.add_nodes_from(nodes)
+
+edges = []
+for r in range(5):
+    for c in range(5):
+        if r > 0: edges.append(((r, c), (r-1, c)))
+        if r < 4: edges.append(((r, c), (r+1, c)))
+        if c > 0: edges.append(((r, c), (r, c-1)))
+        if c < 4: edges.append(((r, c), (r, c+1)))
+model.add_edges_from(edges)
+
+reg_factor = 2.0
+interval = [0, 1]
+
+for r in range(5):
+    for c in range(5):
+        y_i = noisy_image[r, c]
+        values = []
+
+        for x_i in interval:
+            energy = -reg_factor * (x_i - y_i) ** 2
+            values.append(math.exp(energy))
+
+        factor = DiscreteFactor(variables=[(r, c)], cardinality=[2], values=values)
+        model.add_factors(factor)
+        
+from pgmpy.inference import BeliefPropagation
+bp_infer = BeliefPropagation(model)
+marginals = bp_infer.map_query(variables = nodes)
+
+
+
