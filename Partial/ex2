@@ -1,0 +1,60 @@
+!apt install -y libgraphviz-dev
+!pip install pygraphviz
+!pip install networkx
+!pip install pgmpy
+!pip install hmmlearn
+import numpy as np
+import matplotlib.pyplot as plt
+from hmmlearn import hmm
+
+#ex 2a)
+
+states = ['W', 'R', 'S']        # starile
+observations = ['M', 'H', 'L']  # observatiile
+n_states = len(states)  # lungimea listei de stari
+
+# probabilitati initale
+initial_states = np.array([0.4, 0.3, 0.3])
+
+# matricea de tranzitie
+trans_mat = np.array([
+    [0.6, 0.3, 0.1],
+    [0.2, 0.7, 0.1],
+    [0.3, 0.2, 0.5]
+])
+
+# matricea de emisie 
+emission_mat = np.array([
+    [0.1, 0.7, 0.2],
+    [0.05, 0.25, 0.7],
+    [0.8, 0.15, 0.05]
+])
+
+# modelul HMM
+model_true = hmm.CategoricalHMM(n_components=n_states, random_state=42)
+model_true.startprob_ = initial_states
+model_true.transmat_ = trans_mat
+model_true.emissionprob_ = emission_mat
+
+#ex 2b)
+
+obs_map = {'M': 0, 'H': 1, 'L': 2} # vom folosi indicii la observatii deoare modelul HMM lucreaza cu indici
+obs_sequence = ['M', 'H', 'L']  # secventa de obseravtii
+
+# conversie in modelul HMM
+obs_seq = np.array([[obs_map[o]] for o in obs_sequence])
+
+# calculam probabilitatea
+log_prob = model_true.score(obs_seq)
+prob = np.exp(log_prob)
+
+# afisam probabilitatiele
+print("Log-prob:", log_prob) 
+print("Prob:", prob)
+
+# ex 2c)
+logprob, states_path = model_true.decode(obs_seq, algorithm="viterbi")
+most_prob_states = [states[s] for s in states_path]
+
+print("Secventa cea mai probabila:") # afisam starile cele mai probabile
+print(most_prob_states)
