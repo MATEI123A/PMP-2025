@@ -1,1 +1,61 @@
 
+from pgmpy.models import DiscreteBayesianNetwork
+from pgmpy.factors.discrete import TabularCPD
+from pgmpy.inference import VariableElimination
+import matplotlib.pyplot as plt
+import networkx as nx
+
+#ex 1a)
+
+#definimim reteaua bayesiana
+model = DiscreteBayesianNetwork([
+    ('O', 'H'),
+    ('O', 'W'),
+    ('H', 'R'),
+    ('W', 'R'),
+    ('H', 'E'),
+    ('R', 'C')
+])
+
+# proabilitatile conditionale pentru Temperatura, Energie, Comfort, Temperatura de afara
+
+cpd_O = TabularCPD(variable='O', variable_card=2,values=[[0.3], [0.7]])
+
+cpd_H = TabularCPD(variable='H', variable_card=2,values=[[0.9, 0.2],[0.1, 0.8]],evidence=['O'], evidence_card=[2])
+
+cpd_W = TabularCPD(variable='W', variable_card=2, values=[[0.1, 0.6],[0.9, 0.4]],evidence=['O'], evidence_card=[2])
+
+cpd_R = TabularCPD(variable='R', variable_card=2, values=[[0.6, 0.3, 0.8, 0.2],[0.4, 0.7, 0.2, 0.8]],evidence=['H', 'W'], evidence_card=[2, 2])
+
+cpd_E = TabularCPD(variable='E', variable_card=2, values=[[0.8, 0.2],[0.2, 0.8]],evidence=['H'], evidence_card=[2])
+
+cpd_C = TabularCPD(variable='C', variable_card=2,  values=[[0.85, 0.40],[0.15, 0.60]],evidence=['R'], evidence_card=[2])
+
+model.add_cpds(cpd_O, cpd_H, cpd_W, cpd_R, cpd_E, cpd_C) # adaugam in reteaua Bayes probabilitatile
+
+assert model.check_model() # verificam reteaua Bayes pentru a nu exista erori
+
+# afisam modelul + graficul
+
+plt.figure(figsize=(8,6))
+pos = nx.circular_layout(model)
+nx.draw(model, with_labels=True, pos=pos, alpha=0.7, node_size=1800, font_weight="bold")
+plt.show()
+
+
+# ex1 b)
+
+# Inferenta
+inference = VariableElimination(model)
+
+p_H_given_C = inference.query(['H'], evidence={'C': 0})  # inferentele pentru c
+p_E_given_C = inference.query(['E'], evidence={'C': 0})  # inferentele pentru c
+map_query = inference.map_query(['H', 'W'], evidence={'C': 0})  # MAP pentru H si W in functie de c
+
+# afisam inferentele si MAP
+print(p_H_given_C) 
+print(p_E_given_C)
+print(map_query)
+
+
+
