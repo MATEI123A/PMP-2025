@@ -1,0 +1,55 @@
+
+
+import numpy as np
+import pymc as pm
+import arviz as az
+from scipy.stats import poisson
+import matplotlib.pyplot as plt
+
+mu_prior = 10
+Nmax = 50 
+Y_values = [0, 5, 10]
+theta_values = [0.2, 0.5]
+
+def run_scenario(Y, theta):
+    n_vals = np.arange(0, Nmax+1)
+    prior_n = poisson(mu_prior).pmf(n_vals)
+    prior_n /= prior_n.sum()  
+
+    with pm.Model() as model:
+        n = pm.Categorical("n", p=prior_n)
+        pm.Binomial("Y_obs", n=n, p=theta, observed=Y)
+        Y_future = pm.Binomial("Y_future", n=n, p=theta)
+
+        trace = pm.sample(
+            draws=2000,
+            tune=2000,
+            chains=2,
+            cores=1,
+            step=[pm.Metropolis()],
+            random_seed=2025,
+            progressbar=True,
+            compute_convergence_checks=False,
+            discard_tuned_samples=True
+        )
+
+    az.plot_posterior(trace, var_names=["n"], hdi_prob=0.94)
+    plt.title(f"Posterior for n Cond Y={Y}, Tetha={theta}")
+    plt.show()
+
+    y_samples = trace.posterior["Y_future"].values.flatten()
+    az.plot_dist(y_samples, kind="hist")
+    plt.title(f"Predictive posterior Y* Cond Y={Y}, Tetha={theta}")
+    plt.xlabel("Y*")
+    plt.show()
+
+    return trace
+
+# all scenaries
+
+traces = {}
+for Y in Y_values:
+    for theta in theta_values:
+        key = f"Y{Y}_theta{theta}"
+        print(f"Running scenario: {key}")
+        traces[key] = run_scenario(Y, theta)
