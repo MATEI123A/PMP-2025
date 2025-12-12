@@ -1,0 +1,73 @@
+import pandas as pd
+import numpy as np
+import pymc as pm
+import arviz as az
+
+df = pd.read_csv("Prices.csv")
+
+y = df["Price"].values
+x1 = df["Speed"].values
+x2 = np.log(df["HardDrive"].values)  # log hd
+
+with pm.Model() as model:
+    alpha = pm.Normal("alpha", 0, 1000)
+    beta1 = pm.Normal("beta1", 0, 100)
+    beta2 = pm.Normal("beta2", 0, 100)
+    sigma = pm.HalfNormal("sigma", 100)
+
+    mu = alpha + beta1 * x1 + beta2 * x2
+    y_obs = pm.Normal("y_obs", mu=mu, sigma=sigma, observed=y)
+    trace = pm.sample(3000, tune=2000, target_accept=0.9, random_seed=42)
+
+print("Summary: \n")
+print(az.summary(trace, var_names=["alpha", "beta1", "beta2", "sigma"]))
+
+print("\n95% HDI pentru beta1, beta2\n")
+print(az.hdi(trace, hdi_prob=0.95)[["beta1", "beta2"]])
+
+print("\nc)\n")
+hdi_vals = az.hdi(trace, hdi_prob=0.95)
+print("HDI beta1:", hdi_vals.loc["beta1"])
+print("HDI beta2:", hdi_vals.loc["beta2"])
+# daca intervalele nu includ 0 → predictor semnificativ
+
+
+# 90% HDI pentru μ la (speed=33, hd=540)
+x1_new = 33
+x2_new = np.log(540)
+
+mu_draws = trace.posterior["alpha"] \
+           + trace.posterior["beta1"] * x1_new \
+           + trace.posterior["beta2"] * x2_new
+
+mu_draws = mu_draws.stack(sample=("chain", "draw")).values
+
+print("\n90% HDI pentru mu (expected price)\n")
+print(az.hdi(mu_draws, hdi_prob=0.90))
+
+# simulare din distributia predictiva
+ppc_new = pm.draw(pm.Normal.dist(
+    mu=trace.posterior["alpha"] + trace.posterior["beta1"] * x1_new + trace.posterior["beta2"] * x2_new,
+    sigma=trace.posterior["sigma"]
+), draws=4000, random_seed=42)
+
+print("\n90% HDI pentru predictive price (posterior predictive)\n")
+print(az.hdi(ppc_new, hdi_prob=0.90))
+
+# BONUS: efectul producatorului premium
+with pm.Model() as model_bonus:
+    alpha = pm.Normal("alpha", 0, 1000)
+    beta1 = pm.Normal("beta1", 0, 100)
+    beta2 = pm.Normal("beta2", 0, 100)
+    beta_prem = pm.Normal("beta_prem", 0, 500)
+    sigma = pm.HalfNormal("sigma", 100)
+
+    mu = alpha + beta1 * x1 + beta2 * x2 + beta_prem * df["premium"].values
+
+    y_obs = pm.Normal("y_obs", mu=mu, sigma=sigma, observed=y)
+
+    trace_bonus = pm.sample(3000, tune=2000, target_accept=0.9)
+
+print("\nBONUS: Efect premium (coeficient beta_prem) \n")
+print(az.summary(trace_bonus, var_names=["beta_prem"]))
+# comentariu: daca HDI nu include 0 → producător premium crește prețul
